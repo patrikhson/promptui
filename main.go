@@ -211,9 +211,9 @@ const ratsiturlroot = "https://www.ratsit.se"
 
 // Check SQLite error
 func checkErr(err error) {
-    if err != nil {
+  if err != nil {
 		panic(err)
-    }
+  }
 }
 
 func fromRatsitAPI(theFirst string, theLast string, theSSN string, theCity string) (string) {
@@ -411,14 +411,14 @@ func fromHitta(theid string) (HittaPerson, error) {
 
 // Initialize the sqlite3 database
 func incsqlite(filename string) (*sql.DB){
-    theDB, err := sql.Open("sqlite", filename)
-    checkErr(err)
+  theDB, err := sql.Open("sqlite", filename)
+  checkErr(err)
 	stmt, err := theDB.Prepare("CREATE TABLE IF NOT EXISTS person (ratsitID TEXT, name TEXT, givenname TEXT, familyname TEXT, telephone TEXT, gender TEXT, birthdate TEXT, streetaddress TEXT, addresslocality TEXT, addresscountry TEXT, postalcode TEXT, latitude TEXT, longitude TEXT)")
 	checkErr(err)
 	_, err = stmt.Exec()
 	checkErr(err)
 	//stmt, err = theDB.Prepare("CREATE UNIQUE INDEX IF NOT EXISTS ipaddrindex ON ipaddr (prefix, ipaddr, port, protocol)")
-    //checkErr(err)
+  //checkErr(err)
 	//_, err = stmt.Exec()
 	//checkErr(err)
 	return theDB
@@ -501,6 +501,7 @@ func main() {
   ratsitSSN := flag.String("ssn", "", "the swedish social security number (YYYYMMDDNNNN)")
 	flag.Parse()
 
+  // If we have asked for a list of records
   if(*listBool) {
     ratsitpersons, _ := searchDB(theDB, *ratsitFirstName, *ratsitLastName, *ratsitCity, *ratsitSSN)
     //fmt.Printf("%d found\n", len(ratsitpersons))
@@ -512,11 +513,13 @@ func main() {
     return
   }
 
+  // If we have asked for a diff to be made
   if(*diffBool) {
     ratsitpersons, _ := searchDB(theDB, *ratsitFirstName, *ratsitLastName, *ratsitCity, *ratsitSSN)
     //fmt.Printf("%d found\n", len(ratsitpersons))
     if(len(ratsitpersons) > 0) {
       for _, s := range ratsitpersons {
+        // Do not dos the service, pause 1s between each call
         time.Sleep(1 * time.Second)
         fmt.Printf("Checking %s...", s.Name)
         t, err := fromRatsit(s.RatsitID)
@@ -533,6 +536,7 @@ func main() {
           } else {
             fmt.Printf("OLD: %s, %s, %s, %s %s, %s\n",s.BirthDate, s.Name, s.Address.StreetAddress, s.Address.PostalCode, s.Address.AddressLocality, s.Telephone);
             fmt.Printf("NEW: %s, %s, %s, %s %s, %s\n",t.BirthDate, t.Name, t.Address.StreetAddress, t.Address.PostalCode, t.Address.AddressLocality, t.Telephone);
+            // If we have asked for the record to be updated, delete and add again
             if(*addBool) {
               doDeleteRatsit(theDB, s.RatsitID)
               doAddRatsit(theDB, s.RatsitID, s)
@@ -546,18 +550,20 @@ func main() {
     return
   }
 
-  
+  // If we are looking for records in Ratsit or local database (if dbid is given)
+  var getRatsitPerson RatsitPerson
+  var fetcherr error
+
   ratsitID := *idPtr
   dbID := *dbidPtr
   if(len(dbID) > 0) {
     ratsitID = dbID
   }
+  // If we do not have any RatsitID yet, do a search
   if(len(ratsitID) == 0) {
     ratsitID = fromRatsitAPI(*ratsitFirstName, *ratsitLastName, *ratsitSSN, *ratsitCity)
   }
 
-  var getRatsitPerson RatsitPerson
-  var fetcherr error
   // Note that ratsitID == dbID iff dbID is set
   if len(dbID) > 0 {
     getRatsitPerson, fetcherr = fromDB(theDB, ratsitID)
@@ -574,6 +580,7 @@ func main() {
     fmt.Printf("Postal address: %s %s\n", getRatsitPerson.Address.PostalCode, getRatsitPerson.Address.AddressLocality)
     fmt.Printf("Birth date: %s\n", getRatsitPerson.BirthDate)
     fmt.Printf("Telephone: %s\n", getRatsitPerson.Telephone)
+    // If we asked for the person to be added, add it
     if(*addBool) {
       // Check if person already exists with this id
       _, err := fromDB(theDB, ratsitID)

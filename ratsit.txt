@@ -1,0 +1,3 @@
+Fetching https://www.ratsit.se/19650510-Patrik_HSon_Faltstrom_Lovestad/TJYDz-DckaOKic-DH4lUqN7Kbqe6wOrZpKkErmJYrDQ
+A {"@context":"https://schema.org","@type":"Person","name":"Patrik H:Son Fältström","address":{"@type":"PostalAddress","addressCountry":"SE","addressLocality":"Lövestad","postalCode":"275 71","streetAddress":"Kullamöllevägen 276-13"},"birthDate":"1965-05-10","familyName":"Fältström","gender":"https://schema.org/Male","givenName":"Patrik H:Son"} B {"@context":"https://schema.org","@type":"GeoCoordinates","latitude":"55.64239","longitude":"13.85898"}
+

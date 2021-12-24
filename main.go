@@ -455,11 +455,12 @@ func fromDB(theDB *sql.DB, theID string) (RatsitPerson, error) {
   }
 }
 
-func searchDB(theDB *sql.DB, theGivenName string, theFamilyName string, theCity string, theBirthdate string) ([]RatsitPerson, error) {
+func searchDB(theDB *sql.DB, theID string, theGivenName string, theFamilyName string, theCity string, theBirthdate string) ([]RatsitPerson, error) {
 	var pa []RatsitPerson
 	var p RatsitPerson
   theQuery := "SELECT ratsitID, name, givenname, familyname, telephone, gender, birthdate, streetaddress, addresslocality, addresscountry, postalcode FROM person WHERE "
-  theQuery = theQuery + "givenname like '%" + theGivenName + "%'"
+  theQuery = theQuery + "ratsitID like '%" + theID + "%'"
+  theQuery = theQuery + "and givenname like '%" + theGivenName + "%'"
   theQuery = theQuery + "and familyname like '%" + theFamilyName + "%'"
   theQuery = theQuery + "and addresslocality like '%" + theCity + "%'"
   theQuery = theQuery + "and birthdate like '%" + theBirthdate + "%'"
@@ -517,8 +518,7 @@ func main() {
   theDB := incsqlite(dbfilepath)
 
   // Handle arguments
-  idPtr := flag.String("id", "", "a unique id for a record in ratsit")
-  dbidPtr := flag.String("dbid", "", "a unique id for a record in database")
+  idPtr := flag.String("id", "", "a unique id for a record")
   //hittaPtr := flag.String("hitta", "", "use Hitta")
   addBool := flag.Bool("add", false, "add record")
   findBool := flag.Bool("find", false, "find records online")
@@ -542,8 +542,8 @@ func main() {
   }
   
   // If we have not asked for lookup of records online
-  if(!(*findBool)) {
-    ratsitpersons, _ := searchDB(theDB, *ratsitFirstName, *ratsitLastName, *ratsitCity, *ratsitSSN)
+  if(!(*findBool) && !(*diffBool)) {
+    ratsitpersons, _ := searchDB(theDB, *idPtr, *ratsitFirstName, *ratsitLastName, *ratsitCity, *ratsitSSN)
     //fmt.Printf("%d found\n", len(ratsitpersons))
     if(len(ratsitpersons) > 0) {
       for _, s := range ratsitpersons {
@@ -555,7 +555,7 @@ func main() {
 
   // If we have asked for a diff to be made
   if(*diffBool) {
-    ratsitpersons, _ := searchDB(theDB, *ratsitFirstName, *ratsitLastName, *ratsitCity, *ratsitSSN)
+    ratsitpersons, _ := searchDB(theDB, *idPtr, *ratsitFirstName, *ratsitLastName, *ratsitCity, *ratsitSSN)
     //fmt.Printf("%d found\n", len(ratsitpersons))
     if(len(ratsitpersons) > 0) {
       for _, s := range ratsitpersons {
@@ -590,24 +590,17 @@ func main() {
     return
   }
 
-  // If we are looking for records in Ratsit or local database (if dbid is given)
+  // If we are looking for records in Ratsit
   var getRatsitPerson RatsitPerson
   var fetcherr error
 
   ratsitID := *idPtr
-  dbID := *dbidPtr
-  if(len(dbID) > 0) {
-    ratsitID = dbID
-  }
   // If we do not have any RatsitID yet, do a search
   if(len(ratsitID) == 0) {
     ratsitID = fromRatsitAPI(*ratsitFirstName, *ratsitLastName, *ratsitSSN, *ratsitCity)
   }
 
-  // Note that ratsitID == dbID iff dbID is set
-  if len(dbID) > 0 {
-    getRatsitPerson, fetcherr = fromDB(theDB, ratsitID)
-  } else if len(ratsitID) > 0 {
+  if len(ratsitID) > 0 {
     getRatsitPerson, fetcherr = fromRatsit(ratsitID)
   }
   if fetcherr != nil {

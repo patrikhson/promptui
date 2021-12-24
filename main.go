@@ -456,8 +456,8 @@ func fromDB(theDB *sql.DB, theID string) (RatsitPerson, error) {
 }
 
 func searchDB(theDB *sql.DB, theGivenName string, theFamilyName string, theCity string, theBirthdate string) ([]RatsitPerson, error) {
-  var pa []RatsitPerson
-  var p RatsitPerson
+	var pa []RatsitPerson
+	var p RatsitPerson
   theQuery := "SELECT ratsitID, name, givenname, familyname, telephone, gender, birthdate, streetaddress, addresslocality, addresscountry, postalcode FROM person WHERE "
   theQuery = theQuery + "givenname like '%" + theGivenName + "%'"
   theQuery = theQuery + "and familyname like '%" + theFamilyName + "%'"
@@ -466,7 +466,35 @@ func searchDB(theDB *sql.DB, theGivenName string, theFamilyName string, theCity 
   theQuery = theQuery + "order by familyname, givenname"
   //fmt.Printf("Looking for %s, %s, %s, %s\n", theGivenName, theFamilyName, theCity, theBirthdate)
   rows,err := theDB.Query(theQuery)
-  //  rows,err := theDB.Query("SELECT ratsitID, name, givenname, familyname, telephone, gender, birthdate, streetaddress, addresslocality, addresscountry, postalcode FROM person WHERE givenname like ? and familyname like ? and addresslocality like ? and birthdate like ?", theGivenName, theFamilyName, theCity, theBirthdate)
+  //	rows,err := theDB.Query("SELECT ratsitID, name, givenname, familyname, telephone, gender, birthdate, streetaddress, addresslocality, addresscountry, postalcode FROM person WHERE givenname like ? and familyname like ? and addresslocality like ? and birthdate like ?", theGivenName, theFamilyName, theCity, theBirthdate)
+	checkErr(err)
+	defer rows.Close()
+	for rows.Next() {
+		if err := rows.Scan(&(p.RatsitID), &(p.Name), &(p.GivenName), &(p.FamilyName), &(p.Telephone), &(p.Gender), &(p.BirthDate), &(p.Address.StreetAddress), &(p.Address.AddressLocality), &(p.Address.AddressCountry), &(p.Address.PostalCode)); err != nil {
+			checkErr(err)
+		}
+		pa = append(pa, p)
+	}
+  if len(pa) > 0 {
+    return pa, nil
+  } else {
+    return pa, errors.New("Did not find any person")
+  }
+}
+
+func searchBirthdayDB(theDB *sql.DB, days int) ([]RatsitPerson, error) {
+  var pa []RatsitPerson
+  var p RatsitPerson
+  td := time.Now()
+  theQuery := "SELECT ratsitID, name, givenname, familyname, telephone, gender, birthdate, streetaddress, addresslocality, addresscountry, postalcode FROM person WHERE "
+  theQuery = theQuery + "birthdate like '%-" + fmt.Sprintf("%02d-%02d", td.Month(), td.Day()) + "'"
+  for i := -1; i < days; i++ {
+    td = td.AddDate(0, 0, 1)
+    theQuery = theQuery + "or birthdate like '%-" + fmt.Sprintf("%02d-%02d", td.Month(), td.Day()) + "'"
+  }
+  theQuery = theQuery + " order by substr(birthdate, 6, 5)"
+  //fmt.Println(theQuery)
+  rows,err := theDB.Query(theQuery)
   checkErr(err)
   defer rows.Close()
   for rows.Next() {
@@ -493,16 +521,28 @@ func main() {
   dbidPtr := flag.String("dbid", "", "a unique id for a record in database")
   //hittaPtr := flag.String("hitta", "", "use Hitta")
   addBool := flag.Bool("add", false, "add record")
-  listBool := flag.Bool("list", false, "list records")
+  findBool := flag.Bool("find", false, "find records online")
   diffBool := flag.Bool("diff", false, "compare records")
+  birthdayNum := flag.Int("birthday", -1, "who has birthday soon")
   ratsitFirstName := flag.String("first", "", "the first name of the person")
   ratsitLastName := flag.String("last", "", "the last name of the person")
   ratsitCity := flag.String("city", "", "the city the person lives in")
   ratsitSSN := flag.String("ssn", "", "the swedish social security number (YYYYMMDDNNNN)")
   flag.Parse()
 
-  // If we have asked for a list of records
-  if(*listBool) {
+  // If we are looking for future birthdays
+  if(*birthdayNum >= 0) {
+    ratsitpersons, _ := searchBirthdayDB(theDB, *birthdayNum)
+    if(len(ratsitpersons) > 0) {
+      for _, s := range ratsitpersons {
+        fmt.Printf("%s, %s, %s, %s %s, %s\n",s.BirthDate, s.Name, s.Address.StreetAddress, s.Address.PostalCode, s.Address.AddressLocality, s.Telephone);
+      }
+    }
+    return
+  }
+  
+  // If we have not asked for lookup of records online
+  if(!(*findBool)) {
     ratsitpersons, _ := searchDB(theDB, *ratsitFirstName, *ratsitLastName, *ratsitCity, *ratsitSSN)
     //fmt.Printf("%d found\n", len(ratsitpersons))
     if(len(ratsitpersons) > 0) {

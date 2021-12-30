@@ -574,12 +574,12 @@ func main() {
             s.Telephone == t.Telephone) {
             fmt.Printf("ok\n")
           } else {
-            fmt.Printf("OLD: %s, %s, %s, %s %s, %s\n",s.BirthDate, s.Name, s.Address.StreetAddress, s.Address.PostalCode, s.Address.AddressLocality, s.Telephone);
+            fmt.Printf("\nOLD: %s, %s, %s, %s %s, %s\n",s.BirthDate, s.Name, s.Address.StreetAddress, s.Address.PostalCode, s.Address.AddressLocality, s.Telephone);
             fmt.Printf("NEW: %s, %s, %s, %s %s, %s\n",t.BirthDate, t.Name, t.Address.StreetAddress, t.Address.PostalCode, t.Address.AddressLocality, t.Telephone);
             // If we have asked for the record to be updated, delete and add again
             if(*addBool) {
               doDeleteRatsit(theDB, s.RatsitID)
-              doAddRatsit(theDB, s.RatsitID, s)
+              doAddRatsit(theDB, s.RatsitID, t)
               fmt.Printf("UPDATED\n")
             }
             fmt.Printf("===========================\n")

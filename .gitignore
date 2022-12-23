@@ -15,5 +15,5 @@ addressbook
 # Stuff
 .bash_profile
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+# Google Sheets API examples and credentials
+quickstart/

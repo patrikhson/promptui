@@ -700,6 +700,8 @@ func main() {
   ratsitSSN := flag.String("ssn", "", "the swedish social security number (YYYYMMDDNNNN)")
   flag.Parse()
 
+  recommendBrutal := false
+  
   // If we are looking for future birthdays
   if(*birthdayNum >= 0) {
     ratsitpersons, _ := searchBirthdayDB(theDB, *birthdayNum)
@@ -782,6 +784,7 @@ func main() {
         if(s.Coordinates == "") {
           if(!*fixBool) {
             fmt.Printf("NO %s, %s, %s %s\n", s.Name, s.Address.StreetAddress, s.Address.PostalCode, s.Address.AddressLocality)
+            recommendBrutal = true
           } else {
             newRow := 1
             newColumn := 0
@@ -834,6 +837,9 @@ func main() {
             fmt.Printf("Weird coordinates (%s) for person %s\n", s.Coordinates, s.Name)
           }
         }
+      }
+      if(recommendBrutal){
+        fmt.Printf("Recommend argument -brutal\n")
       }
     }
     // If XY coordinates are given but empty string, remove them from database
@@ -1001,6 +1007,7 @@ func main() {
       } else {
         doAddRatsit(theDB, ratsitID, getRatsitPerson)
         fmt.Printf("Added person\n")
+        fmt.Printf("Recommended next command with arguments -sheets -fix\n")
       }
     }
   }

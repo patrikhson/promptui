@@ -17,3 +17,10 @@ addressbook
 
 # Google Sheets API examples and credentials
 quickstart/
+
+# Debug data paf
+.DS_Store
+.README.md.icloud
+.ratsit.txt.icloud
+f.txt
+	

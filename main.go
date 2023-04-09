@@ -17,7 +17,9 @@ import (
   //"net/url"
   "time"
   "flag"
-  //"golang.org/x/net/proxy"
+
+  // SOCKS proxy (for TOR)
+  "golang.org/x/net/proxy"
   
   // Google Sheets
   "gopkg.in/Iwark/spreadsheet.v2"
@@ -321,6 +323,8 @@ type HittaPerson struct {
 const hittaurlroot = "https://www.hitta.se/person/"
 const ratsiturlroot = "https://www.ratsit.se"
 
+var useTor bool
+
 // Check SQLite error
 func checkErr(err error) {
   if err != nil {
@@ -369,21 +373,28 @@ func fromRatsitAPI(theFirst string, theLast string, theSSN string, theCity strin
   //fmt.Printf("%s\n",val)
   //os.Exit(1)
 
-  //spaceClient := http.Client{
-  //  Timeout: time.Second * 10, // Timeout after 2 seconds
-  //}
+  spaceClient := http.Client{
+    Timeout: time.Second * 10, // Timeout after 2 seconds
+  }
 
   json_data, err := json.Marshal(q)
   req, err := http.NewRequest(http.MethodPost, theURL, bytes.NewBuffer(json_data))
   req.Header.Add("content-type", "application/json; charset=utf-8")
 
-  //reqDump, err := httputil.DumpRequestOut(req, true)
-  //if err != nil {
-  //  log.Fatal(err)
-  //}
-  //fmt.Printf("REQUEST:\n%s\n", string(reqDump))
+  if(useTor) {
+    // Set up a SOCKS5 proxy dialer for Tor
+    dialer, err := proxy.SOCKS5("tcp", "localhost:9050", nil, proxy.Direct)
+    if err != nil {
+      log.Fatal(err)
+    }
 
-  resp, err := http.DefaultClient.Do(req)
+    // Create a transport that uses the dialer
+    transport := &http.Transport{Dial: dialer.Dial}
+
+    spaceClient.Transport = transport
+  }
+
+  resp, err := spaceClient.Do(req)
   if err != nil {
     log.Fatal(err)
   }
@@ -456,18 +467,21 @@ func fromRatsit(theRatsitID string) (RatsitPerson, error) {
   horoscopeRoot := "https://www.ratsit.se/person/horoskop/"
   theHoroscopeURL := horoscopeRoot + theRatsitID
 
-  // Set up a SOCKS5 proxy dialer for Tor
-  //dialer, err := proxy.SOCKS5("tcp", "localhost:9050", nil, proxy.Direct)
-  //if err != nil {
-  //  log.Fatal(err)
-  //}
-
-  // Create a transport that uses the dialer
-  //transport := &http.Transport{Dial: dialer.Dial}
-
   spaceClient := http.Client{
     Timeout: time.Second * 10, // Timeout after 10 seconds
-  //  Transport: transport,
+  }
+
+  if(useTor) {
+    // Set up a SOCKS5 proxy dialer for Tor
+    dialer, err := proxy.SOCKS5("tcp", "localhost:9050", nil, proxy.Direct)
+    if err != nil {
+      log.Fatal(err)
+    }
+
+    // Create a transport that uses the dialer
+    transport := &http.Transport{Dial: dialer.Dial}
+
+    spaceClient.Transport =  transport
   }
 
   // fmt.Println("H-URL: ", theHoroscopeURL)
@@ -701,6 +715,8 @@ func main() {
   addBool := flag.Bool("add", false, "add record")
   findBool := flag.Bool("find", false, "find records online")
   diffBool := flag.Bool("diff", false, "compare records")
+  toorBool := flag.Bool("tor", false, "use local TOR socks proxy")
+  useTor = *toorBool
   birthdayNum := flag.Int("birthday", -1, "who has birthday soon")
   sheetsBool := flag.Bool("sheets", false, "sync with google sheets")
   fixBool := flag.Bool("fix", false, "various fixes")

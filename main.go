@@ -17,7 +17,8 @@ import (
   //"net/url"
   "time"
   "flag"
-
+  //"golang.org/x/net/proxy"
+  
   // Google Sheets
   "gopkg.in/Iwark/spreadsheet.v2"
   "golang.org/x/net/context"
@@ -454,9 +455,19 @@ func fromRatsitAPI(theFirst string, theLast string, theSSN string, theCity strin
 func fromRatsit(theRatsitID string) (RatsitPerson, error) {
   horoscopeRoot := "https://www.ratsit.se/person/horoskop/"
   theHoroscopeURL := horoscopeRoot + theRatsitID
-  
+
+  // Set up a SOCKS5 proxy dialer for Tor
+  //dialer, err := proxy.SOCKS5("tcp", "localhost:9050", nil, proxy.Direct)
+  //if err != nil {
+  //  log.Fatal(err)
+  //}
+
+  // Create a transport that uses the dialer
+  //transport := &http.Transport{Dial: dialer.Dial}
+
   spaceClient := http.Client{
     Timeout: time.Second * 10, // Timeout after 10 seconds
+  //  Transport: transport,
   }
 
   // fmt.Println("H-URL: ", theHoroscopeURL)
@@ -479,10 +490,11 @@ func fromRatsit(theRatsitID string) (RatsitPerson, error) {
   if readErr != nil {
     log.Fatal(readErr)
   }
-
+  //fmt.Println(string(body))
   person := RatsitPerson{}
   // Note: the .*? construction is a non-greedy match, .* is greedy (longest) match
-  rgx := regexp.MustCompile(`<a class="section-topbar-link" href="(.*?)"`)
+  theRegexp := `"(https://www.ratsit.se/.*?/` + theRatsitID + `)">`
+  rgx := regexp.MustCompile(theRegexp)
   rs := rgx.FindStringSubmatch(string(body))
   if len(rs) > 0 {
     personURL := rs[1]

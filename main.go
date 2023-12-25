@@ -286,37 +286,6 @@ type RatsitPerson struct {
 //  Longitude string `json:"longitude"`
 //}
 
-type HittaPerson struct {
-  HittaID       string        `json:"@foobar"`
-  Context       string        `json:"@context"`
-  Type          string        `json:"@type"`
-  Name          string        `json:"name"`
-  GivenName     string        `json:"givenName"`
-  FamilyName    string        `json:"familyName"`
-  Gender        string        `json:"gender"`
-  BirthDate     string        `json:"birthDate"`
-  AlternateName string        `json:"alternateName"`
-  Nationality   string        `json:"nationality"`
-  WorkFor       []interface{} `json:"workFor"`
-  Address       struct {
-    Type            string `json:"@type"`
-    StreetAddress   string `json:"streetAddress"`
-    AddressLocality string `json:"addressLocality"`
-    AddressRegion   string `json:"addressRegion"`
-    PostalCode      int    `json:"postalCode"`
-    AddressCountry  struct {
-      Type string `json:"@type"`
-      Name string `json:"name"`
-    } `json:"addressCountry"`
-  } `json:"address"`
-  Geo struct {
-    Type      string  `json:"@type"`
-    Latitude  float64 `json:"latitude"`
-    Longitude float64 `json:"longitude"`
-  } `json:"geo"`
-}
-
-const hittaurlroot = "https://www.hitta.se/person/"
 const ratsiturlroot = "https://www.ratsit.se"
 
 var useTor bool
@@ -343,6 +312,26 @@ type RatsitQuery struct {
 	Postort        string   `json:"postort"`
 	Kommun         string   `json:"kommun"`
 	Page           int      `json:"page"`
+}
+
+// promptWithDefault prompts the user with a message and a default value for a string.
+// If the user presses return without entering a new value, the default value is returned.
+// Otherwise, the new value entered by the user is returned.
+func promptWithDefault(message, defaultValue string) string {
+	fmt.Printf("%s [%s]: ", message, defaultValue)
+
+	// Read user input from the terminal
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	userInput := scanner.Text()
+
+	// If the user pressed return without entering a new value, return the default value
+	if userInput == "" {
+		return defaultValue
+	}
+
+	// Otherwise, return the new value entered by the user
+	return userInput
 }
 
 func fromRatsitAPI(theFirst string, theLast string, theSSN string, theCity string) (string) {
@@ -555,50 +544,6 @@ func fromRatsit(theRatsitID string) (RatsitPerson, error) {
   }
 }
 
-func fromHitta(theid string) (HittaPerson, error) {
-  url := hittaurlroot + theid
-
-  spaceClient := http.Client{
-    Timeout: time.Second * 2, // Timeout after 2 seconds
-  }
-
-  req, err := http.NewRequest(http.MethodGet, url, nil)
-  if err != nil {
-    log.Fatal(err)
-  }
-
-  //req.Header.Set("User-Agent", "paf-adress")
-
-  res, getErr := spaceClient.Do(req)
-  if getErr != nil {
-    log.Fatal(getErr)
-  }
-
-  if res.Body != nil {
-    defer res.Body.Close()
-  }
-
-  body, readErr := ioutil.ReadAll(res.Body)
-  if readErr != nil {
-    log.Fatal(readErr)
-  }
-
-  person := HittaPerson{}
-  rgx := regexp.MustCompile(`application/ld\+json\"\>([^<]*)\<`)
-  rs := rgx.FindStringSubmatch(string(body))
-  if len(rs) > 0 {
-    jsonErr := json.Unmarshal([]byte(rs[1]), &person)
-    if jsonErr != nil {
-      log.Fatal(jsonErr)
-    }
-  }
-  if len(person.Name) > 0 {
-    return person, nil
-  } else {
-    return person, errors.New("Did not find person")
-  }
-}
-
 // Initialize the sqlite3 database
 func incsqlite(filename string) (*sql.DB){
   theDB, err := sql.Open("sqlite", filename)
@@ -710,12 +655,11 @@ func main() {
 
   // Handle arguments
   idPtr := flag.String("id", "", "a unique id for a record")
-  //hittaPtr := flag.String("hitta", "", "use Hitta")
   addBool := flag.Bool("add", false, "add record")
   findBool := flag.Bool("find", false, "find records online")
   diffBool := flag.Bool("diff", false, "compare records")
-  toorBool := flag.Bool("tor", false, "use local TOR socks proxy")
-  useTor = *toorBool
+  torBool := flag.Bool("tor", false, "use local TOR socks proxy")
+  updateBool := flag.Bool("update", false, "update record from terminal")
   birthdayNum := flag.Int("birthday", -1, "who has birthday soon")
   ratsitFirstName := flag.String("first", "", "the first name of the person")
   ratsitLastName := flag.String("last", "", "the last name of the person")
@@ -723,6 +667,9 @@ func main() {
   ratsitSSN := flag.String("ssn", "", "the swedish social security number (YYYYMMDDNNNN)")
   flag.Parse()
 
+  // Should we use the TOR network?
+  useTor = *torBool
+  
   // If we are looking for future birthdays
   if(*birthdayNum >= 0) {
     ratsitpersons, _ := searchBirthdayDB(theDB, *birthdayNum)
@@ -739,8 +686,54 @@ func main() {
     ratsitpersons, _ := searchDB(theDB, *idPtr, *ratsitFirstName, *ratsitLastName, *ratsitCity, *ratsitSSN)
     //fmt.Printf("%d found\n", len(ratsitpersons))
     if(len(ratsitpersons) > 0) {
-      for _, s := range ratsitpersons {
-        fmt.Printf("%s, %s, %s, %s %s, %s %s\n",s.BirthDate, s.Name, s.Address.StreetAddress, s.Address.PostalCode, s.Address.AddressLocality, s.Telephone);
+      if(len(ratsitpersons) == 1) {
+        s := ratsitpersons[0]
+        theName := s.Name
+        theGivenName := s.GivenName
+        theFamilyName := s.FamilyName
+        theTelephone := s.Telephone
+        theBirthDate := s.BirthDate
+        theStreetAddress := s.Address.StreetAddress
+        theAddressLocality := s.Address.AddressLocality
+        theAddressCountry := s.Address.AddressCountry
+        theAddressPostalCode := s.Address.PostalCode
+        theDisplayName := s.DisplayName
+        theToAddress := s.ToAddress
+
+        fmt.Printf("          Name: %s\n", theName)
+        fmt.Printf("  Display Name: %s\n", theDisplayName)
+        fmt.Printf("    To Address: %s\n", theToAddress)
+        fmt.Printf("    Given Name: %s\n", theGivenName)
+        fmt.Printf("   Family Name: %s\n", theFamilyName)
+        fmt.Printf("     Telephone: %s\n", theTelephone)
+        fmt.Printf("     Birthdate: %s\n", theBirthDate)
+        fmt.Printf("Street Address: %s\n", theStreetAddress)
+        fmt.Printf("      Locality: %s\n", theAddressLocality)
+        fmt.Printf("      Zip code: %s\n", theAddressPostalCode)
+        fmt.Printf("       Country: %s\n", theAddressCountry)
+
+        if(*updateBool) {
+          fmt.Printf("\nUPDATING RECORD:\n")
+          fmt.Printf("          Name: %s\n", theName)
+          fmt.Printf("  Display Name: %s\n", theDisplayName)
+          fmt.Printf("    To Address: %s\n", theToAddress)
+          fmt.Printf("    Given Name: %s\n", theGivenName)
+          fmt.Printf("   Family Name: %s\n", theFamilyName)
+          fmt.Printf("     Telephone: %s\n", theTelephone)
+          fmt.Printf("     Birthdate: %s\n", theBirthDate)
+          fmt.Printf("Street Address: %s\n", theStreetAddress)
+          fmt.Printf("      Locality: %s\n", theAddressLocality)
+          fmt.Printf("      Zip code: %s\n", theAddressPostalCode)
+          fmt.Printf("       Country: %s\n", theAddressCountry)
+        }
+      } else {
+        for _, s := range ratsitpersons {
+          theDisplayName := s.Name
+          if(s.DisplayName != "") {
+            theDisplayName = s.DisplayName
+          }
+          fmt.Printf("%s, %s, %s, %s %s, %s\n",s.BirthDate, theDisplayName, s.Address.StreetAddress, s.Address.PostalCode, s.Address.AddressLocality, s.Telephone);
+        }
       }
     }
     return
@@ -787,7 +780,7 @@ func main() {
     return
   }
 
-  // If we are looking for records in Ratsit
+  // Last resort, we are looking for records in Ratsit
   var getRatsitPerson RatsitPerson
   var fetcherr error
 

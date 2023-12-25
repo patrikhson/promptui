@@ -277,7 +277,6 @@ type RatsitPerson struct {
   Gender     string `json:"gender"`
   GivenName  string `json:"givenName"`
   Telephone  string `json:"telephone"`
-  Coordinates string `json:"coordinates"`
 }
 
 //type RatsitGeo struct {
@@ -550,7 +549,6 @@ func fromRatsit(theRatsitID string) (RatsitPerson, error) {
     person.Telephone = rea.ReplaceAllString(person.Telephone, `+46-$1`)
     person.Telephone = reb.ReplaceAllString(person.Telephone, `+46-$1`)
     person.RatsitID = theRatsitID
-    person.Coordinates = ""
     return person, nil
   } else {
     return person, errors.New("Did not find person")
@@ -605,7 +603,7 @@ func fromHitta(theid string) (HittaPerson, error) {
 func incsqlite(filename string) (*sql.DB){
   theDB, err := sql.Open("sqlite", filename)
   checkErr(err)
-  stmt, err := theDB.Prepare("CREATE TABLE IF NOT EXISTS person (ratsitID TEXT, name TEXT, givenname TEXT, familyname TEXT, telephone TEXT, gender TEXT, birthdate TEXT, streetaddress TEXT, addresslocality TEXT, addresscountry TEXT, postalcode TEXT, latitude TEXT, longitude TEXT, coordinates TEXT, displayname TEXT, toaddress TEXT)")
+  stmt, err := theDB.Prepare("CREATE TABLE IF NOT EXISTS person (ratsitID TEXT, name TEXT, givenname TEXT, familyname TEXT, telephone TEXT, gender TEXT, birthdate TEXT, streetaddress TEXT, addresslocality TEXT, addresscountry TEXT, postalcode TEXT, latitude TEXT, longitude TEXT, displayname TEXT, toaddress TEXT)")
   checkErr(err)
   _, err = stmt.Exec()
   checkErr(err)
@@ -617,7 +615,7 @@ func incsqlite(filename string) (*sql.DB){
 }
 
 func doAddRatsit(theDB *sql.DB, theID string, p RatsitPerson) {
-  _, err := theDB.Exec("INSERT INTO person (ratsitID, name, givenname, familyname, telephone, gender, birthdate, streetaddress, addresslocality, addresscountry, postalcode, coordinates, displayname, toaddress) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", theID, p.Name, p.GivenName, p.FamilyName, p.Telephone, p.Gender, p.BirthDate, p.Address.StreetAddress, p.Address.AddressLocality, p.Address.AddressCountry, p.Address.PostalCode, p.Coordinates, p.DisplayName, p.ToAddress)
+  _, err := theDB.Exec("INSERT INTO person (ratsitID, name, givenname, familyname, telephone, gender, birthdate, streetaddress, addresslocality, addresscountry, postalcode, displayname, toaddress) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", theID, p.Name, p.GivenName, p.FamilyName, p.Telephone, p.Gender, p.BirthDate, p.Address.StreetAddress, p.Address.AddressLocality, p.Address.AddressCountry, p.Address.PostalCode, p.DisplayName, p.ToAddress)
   checkErr(err)
 }
 
@@ -630,11 +628,11 @@ func fromDB(theDB *sql.DB, theID string) (RatsitPerson, error) {
   var pa []RatsitPerson
   var p RatsitPerson
 
-  rows,err := theDB.Query("SELECT ratsitID, name, givenname, familyname, telephone, gender, birthdate, streetaddress, addresslocality, addresscountry, postalcode, coordinates, displayname, toaddress FROM person WHERE ratsitID = ?", theID)
+  rows,err := theDB.Query("SELECT ratsitID, name, givenname, familyname, telephone, gender, birthdate, streetaddress, addresslocality, addresscountry, postalcode, displayname, toaddress FROM person WHERE ratsitID = ?", theID)
   checkErr(err)
   defer rows.Close()
   for rows.Next() {
-    if err := rows.Scan(&(p.RatsitID), &(p.Name), &(p.GivenName), &(p.FamilyName), &(p.Telephone), &(p.Gender), &(p.BirthDate), &(p.Address.StreetAddress), &(p.Address.AddressLocality), &(p.Address.AddressCountry), &(p.Address.PostalCode), &(p.Coordinates), &(p.DisplayName), &(p.ToAddress)); err != nil {
+    if err := rows.Scan(&(p.RatsitID), &(p.Name), &(p.GivenName), &(p.FamilyName), &(p.Telephone), &(p.Gender), &(p.BirthDate), &(p.Address.StreetAddress), &(p.Address.AddressLocality), &(p.Address.AddressCountry), &(p.Address.PostalCode), &(p.DisplayName), &(p.ToAddress)); err != nil {
       checkErr(err)
     }
     //p.RatsitID = theID
@@ -650,7 +648,7 @@ func fromDB(theDB *sql.DB, theID string) (RatsitPerson, error) {
 func searchDB(theDB *sql.DB, theID string, theGivenName string, theFamilyName string, theCity string, theBirthdate string) ([]RatsitPerson, error) {
 	var pa []RatsitPerson
 	var p RatsitPerson
-  theQuery := "SELECT ratsitID, name, givenname, familyname, telephone, gender, birthdate, streetaddress, addresslocality, addresscountry, postalcode, coordinates, displayname, toaddress FROM person WHERE "
+  theQuery := "SELECT ratsitID, name, givenname, familyname, telephone, gender, birthdate, streetaddress, addresslocality, addresscountry, postalcode, displayname, toaddress FROM person WHERE "
   theQuery = theQuery + "ratsitID like '%" + theID + "%'"
   theQuery = theQuery + "and givenname like '%" + theGivenName + "%'"
   theQuery = theQuery + "and familyname like '%" + theFamilyName + "%'"
@@ -663,7 +661,7 @@ func searchDB(theDB *sql.DB, theID string, theGivenName string, theFamilyName st
 	checkErr(err)
 	defer rows.Close()
 	for rows.Next() {
-		if err := rows.Scan(&(p.RatsitID), &(p.Name), &(p.GivenName), &(p.FamilyName), &(p.Telephone), &(p.Gender), &(p.BirthDate), &(p.Address.StreetAddress), &(p.Address.AddressLocality), &(p.Address.AddressCountry), &(p.Address.PostalCode), &(p.Coordinates), &(p.DisplayName), &(p.ToAddress)); err != nil {
+		if err := rows.Scan(&(p.RatsitID), &(p.Name), &(p.GivenName), &(p.FamilyName), &(p.Telephone), &(p.Gender), &(p.BirthDate), &(p.Address.StreetAddress), &(p.Address.AddressLocality), &(p.Address.AddressCountry), &(p.Address.PostalCode), &(p.DisplayName), &(p.ToAddress)); err != nil {
 			checkErr(err)
 		}
 
@@ -680,7 +678,7 @@ func searchBirthdayDB(theDB *sql.DB, days int) ([]RatsitPerson, error) {
   var pa []RatsitPerson
   var p RatsitPerson
   td := time.Now()
-  theQuery := "SELECT ratsitID, name, givenname, familyname, telephone, gender, birthdate, streetaddress, addresslocality, addresscountry, postalcode, coordinates, displayname, toaddress FROM person WHERE "
+  theQuery := "SELECT ratsitID, name, givenname, familyname, telephone, gender, birthdate, streetaddress, addresslocality, addresscountry, postalcode, displayname, toaddress FROM person WHERE "
   theQuery = theQuery + "birthdate like '%-" + fmt.Sprintf("%02d-%02d", td.Month(), td.Day()) + "'"
   for i := -1; i < days; i++ {
     td = td.AddDate(0, 0, 1)
@@ -692,7 +690,7 @@ func searchBirthdayDB(theDB *sql.DB, days int) ([]RatsitPerson, error) {
   checkErr(err)
   defer rows.Close()
   for rows.Next() {
-    if err := rows.Scan(&(p.RatsitID), &(p.Name), &(p.GivenName), &(p.FamilyName), &(p.Telephone), &(p.Gender), &(p.BirthDate), &(p.Address.StreetAddress), &(p.Address.AddressLocality), &(p.Address.AddressCountry), &(p.Address.PostalCode), &(p.Coordinates), &(p.DisplayName), &(p.ToAddress)); err != nil {
+    if err := rows.Scan(&(p.RatsitID), &(p.Name), &(p.GivenName), &(p.FamilyName), &(p.Telephone), &(p.Gender), &(p.BirthDate), &(p.Address.StreetAddress), &(p.Address.AddressLocality), &(p.Address.AddressCountry), &(p.Address.PostalCode), &(p.DisplayName), &(p.ToAddress)); err != nil {
       checkErr(err)
     }
     pa = append(pa, p)
@@ -742,7 +740,7 @@ func main() {
     //fmt.Printf("%d found\n", len(ratsitpersons))
     if(len(ratsitpersons) > 0) {
       for _, s := range ratsitpersons {
-        fmt.Printf("%s, %s, %s, %s %s, %s %s\n",s.BirthDate, s.Name, s.Address.StreetAddress, s.Address.PostalCode, s.Address.AddressLocality, s.Telephone, s.Coordinates);
+        fmt.Printf("%s, %s, %s, %s %s, %s %s\n",s.BirthDate, s.Name, s.Address.StreetAddress, s.Address.PostalCode, s.Address.AddressLocality, s.Telephone);
       }
     }
     return
@@ -777,7 +775,6 @@ func main() {
             fmt.Printf("NEW: %s, %s, %s, %s %s, %s\n",t.BirthDate, t.Name, t.Address.StreetAddress, t.Address.PostalCode, t.Address.AddressLocality, t.Telephone);
             // If we have asked for the record to be updated, delete and add again
             if(*addBool) {
-              t.Coordinates = s.Coordinates
               doDeleteRatsit(theDB, s.RatsitID)
               doAddRatsit(theDB, s.RatsitID, t)
               fmt.Printf("UPDATED\n")

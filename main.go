@@ -510,6 +510,9 @@ func fromRatsit(theRatsitID string) (RatsitPerson, error) {
   theRegexp := `"(https://www.ratsit.se/.*?/` + theRatsitID + `)">`
   rgx := regexp.MustCompile(theRegexp)
   rs := rgx.FindStringSubmatch(string(body))
+  if len(rs) == 0 {
+    return person, errors.New("Did not find person with that id")
+  }
   if len(rs) > 0 {
     personURL := rs[1]
     req, err = http.NewRequest(http.MethodGet, personURL, nil)
@@ -722,6 +725,7 @@ func main() {
   fixBool := flag.Bool("fix", false, "various fixes")
   sheetsXY := flag.String("xy", "-", "A:1 form of coordinates of first address line")
   sheetsBrutal := flag.Bool("brutal", false, "update coordinates from address in sheet")
+  sheetsFetch := flag.Bool("fetch", false, "update data from sheet")
   ratsitFirstName := flag.String("first", "", "the first name of the person")
   ratsitLastName := flag.String("last", "", "the last name of the person")
   ratsitCity := flag.String("city", "", "the city the person lives in")
@@ -743,6 +747,7 @@ func main() {
 
   // If we are looking for interaction with Google Sheets
   if(*sheetsBool) {
+    fmt.Printf("--> Connect to Google\n");
     // Init Google Sheets Interaction
     haveChanged := false
     sheetsData, err := ioutil.ReadFile("/Users/paf/Documents/addressbook-cred.json")
@@ -766,17 +771,38 @@ func main() {
       panic(err.Error())
     }
     // Google sheets is ready, now lets do some stuff
-
+    fmt.Printf("--> Google is ready\n");
     // Update coordinates from sheets, just match on street address
     // Records are in columns 0, 1 and 2
+    if(*sheetsFetch) {
+      fmt.Printf("--> We are in Sheet Fetch mode\n");
+      noRecord := 0 // Start with record 0
+      noRow := 0 // First record on row 0
+      noColumn := 0 // First record on column 0
+      for(noRecord < (maxRows / 6) * 3) {
+        noInnerRow := 0
+        for(noInnerRow < 6) {
+          theValue := sheet.Rows[noRow + noInnerRow][noColumn].Value
+          fmt.Printf("Record %d Row %d Column %d: %s\n", noRecord, noRow + noInnerRow, noColumn, theValue)
+          
+          noInnerRow = noInnerRow + 1
+        }
+        noRecord = noRecord + 1
+        noColumn = noColumn + 1
+        if(noColumn > 2) {
+          noColumn = 0
+          noRow = noRow + 6
+        }
+      }
+      return
+    }
     if(*sheetsBrutal) {
+      fmt.Printf("--> We are in Sheet Brutal mode\n");
       noRow := 1 // We can start on 2nd row
-      theValue := ""
-      
       for(noRow < (maxRows-1)) {
         noColumn := 0
         for(noColumn < 3) {
-          theValue = sheet.Rows[noRow][noColumn].Value
+          theValue := sheet.Rows[noRow][noColumn].Value
           if(theValue != "X" && theValue != "") {
             // Whats the coordinates?
             theColumn := string(noColumn + 65)
@@ -784,6 +810,7 @@ func main() {
             // while index starts with 0, and we want previous line
             theCoordinates := fmt.Sprintf("%s%d", theColumn, noRow)
             // Set coordinates for all records value == address
+            fmt.Printf("--> Update coordinates for address %s\n", theValue);
             _, err := theDB.Exec("UPDATE person SET coordinates = ? WHERE streetaddress = ?", theCoordinates, theValue)
             checkErr(err)
           }
@@ -810,6 +837,7 @@ func main() {
       for _, s := range ratsitpersons {
         // Check if the person do have coordinates
         if(s.Coordinates == "") {
+          fmt.Printf("--> Coordinates missing for %s\n", s.Name);
           if(!*fixBool) {
             fmt.Printf("NO %s, %s, %s %s\n", s.Name, s.Address.StreetAddress, s.Address.PostalCode, s.Address.AddressLocality)
             recommendBrutal = true
@@ -831,6 +859,7 @@ func main() {
                   fmt.Printf("Expanding sheet from %d to %d rows\n", maxRows-6,maxRows)
                   err := sheetsService.ExpandSheet(sheet, uint(maxRows), 3)
                   if(err != nil) {
+                    fmt.Printf("What?\n")
                     panic(err.Error())
                   }
                   foundPosition = true
@@ -841,11 +870,11 @@ func main() {
             sheet.Update(newRow+1, newColumn, s.Address.StreetAddress)
             sheet.Update(newRow+2, newColumn, s.Address.PostalCode + " " + s.Address.AddressLocality)
             haveChanged = true
-            fmt.Printf("Add record %s\n", s.Name)
+            fmt.Printf("Added record %s\n", s.Name)
           }
         } else {
           if(!*fixBool) {
-            fmt.Printf("%s, %s, %s %s\n", s.Name, s.Address.StreetAddress, s.Address.PostalCode, s.Address.AddressLocality)
+            fmt.Printf("%s, %s, %s %s %s\n", s.Name, s.Address.StreetAddress, s.Address.PostalCode, s.Address.AddressLocality, s.Coordinates)
           }
           rs := rgx.FindStringSubmatch(s.Coordinates)
           if(len(rs) > 0) {
@@ -891,6 +920,7 @@ func main() {
         return
       }
       thePerson := ratsitpersons[0]
+      fmt.Printf("Updating coordinates for person %s %s\n", thePerson.Name, thePerson.Coordinates)
       // We want CAPS for the column value
       theXY := strings.ToUpper(*sheetsXY)
       // Validate syntax of coordinates ([A-Z][0-9]+)
@@ -922,11 +952,18 @@ func main() {
             fmt.Printf("Wrong coordinates for %s\n", s.Name)
             return
           }
+          // if(theRow+5 < maxRows) {
+          //  maxRows = maxRows + 6
+          //  fmt.Printf("Update and expanding sheet from %d to %d rows\n", maxRows-6,uint(maxRows))
+          //  sheetsService.ExpandSheet(sheet, uint(maxRows), 3)
+          //  sheetsService.SyncSheet(sheet)
+          // }
           oneName := sheet.Rows[theRow][theColumn].Value
           oneAddress := sheet.Rows[theRow+1][theColumn].Value
           onePostal := sheet.Rows[theRow+2][theColumn].Value
-          // Fetch the tree values from the database
+          // Fetch the three values from the database
           theName := s.Name
+          // fmt.Printf("Checking person %s\n", theName)
           theAddress := s.Address.StreetAddress
           thePostal := s.Address.PostalCode + " " + s.Address.AddressLocality
           // Compare with the record in the database, and update if requested
@@ -936,6 +973,7 @@ func main() {
               sheet.Update(theRow+2,theColumn, thePostal)
               haveChanged = true
             }
+            fmt.Printf("[%d, %d]\n", theRow, theColumn)
             fmt.Printf("OLD: %s, %s, %s\n", oneName, oneAddress, onePostal)
             fmt.Printf("NEW: %s, %s, %s\n", theName, theAddress, thePostal)
           }
@@ -946,7 +984,7 @@ func main() {
     if(haveChanged) {
       err = sheet.Synchronize()
       if(err != nil) {
-        fmt.Printf("5\n")
+        fmt.Printf("Error Sync\n")
         panic(err.Error())
       }
     }
@@ -959,7 +997,7 @@ func main() {
     //fmt.Printf("%d found\n", len(ratsitpersons))
     if(len(ratsitpersons) > 0) {
       for _, s := range ratsitpersons {
-        fmt.Printf("%s, %s, %s, %s %s, %s\n",s.BirthDate, s.Name, s.Address.StreetAddress, s.Address.PostalCode, s.Address.AddressLocality, s.Telephone);
+        fmt.Printf("%s, %s, %s, %s %s, %s %s\n",s.BirthDate, s.Name, s.Address.StreetAddress, s.Address.PostalCode, s.Address.AddressLocality, s.Telephone, s.Coordinates);
       }
     }
     return

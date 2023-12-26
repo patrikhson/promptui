@@ -8,6 +8,9 @@ var (
 	// KeyEnter is the default key for submission/selection.
 	KeyEnter rune = readline.CharEnter
 
+	// KeyCtrlA is the key for going to start of line.
+	KeyCtrlA rune = readline.CharCtrlA
+
 	// KeyCtrlH is the key for deleting input text.
 	KeyCtrlH rune = readline.CharCtrlH
 

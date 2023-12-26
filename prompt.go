@@ -195,7 +195,12 @@ func (p *Prompt) Run() (string, error) {
 		_, err = rl.Readline()
 		inputErr = validFn(cur.Get())
 		if inputErr == nil {
-			break
+      // Do not die on EOF (Ctrl-D)
+      if(err == io.EOF) {
+        continue
+      } else {
+        break
+      }
 		}
 
 		if err != nil {

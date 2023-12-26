@@ -14,7 +14,7 @@ func defaultCursor(ignored []rune) []rune {
 }
 
 func blockCursor(input []rune) []rune {
-	return []rune(fmt.Sprintf("\\e[7m%s\\e[0m", string(input)))
+  return []rune(fmt.Sprintf("\x1b[7m%s\x1b[0m", string(input)))
 }
 
 func pipeCursor(input []rune) []rune {
@@ -108,7 +108,8 @@ func format(a []rune, c *Cursor) string {
 		out = append(out, b...)       // add the cursor
 		out = append(out, a[i+1:]...) // add the rest after i
 	} else {
-		b = c.Cursor([]rune{})
+    //		b = c.Cursor([]rune{}) TEST
+    b = c.Cursor([]rune(" ")) // TEST
 		out = append(out, a...)
 		out = append(out, b...)
 	}
@@ -224,6 +225,11 @@ func (c *Cursor) Listen(line []rune, pos int, key rune) ([]rune, int, bool) {
 		c.Move(1)
 	case KeyBackward:
 		c.Move(-1)
+  case KeyDelete:
+    if(c.Position < len([]rune(c.Get()))) {
+      c.Move(1)
+      c.Backspace()
+    }
 	default:
 		if c.erase {
 			c.erase = false

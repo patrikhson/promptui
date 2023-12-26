@@ -14,6 +14,9 @@ var (
 	// KeyEnd is the key for going to end of line.
 	KeyEnd rune = readline.CharLineEnd
 
+	// KeyCtrlD is the key for deleting forward character
+	KeyDelete rune = readline.CharDelete
+
 	// KeyCtrlH is the key for deleting input text.
 	KeyCtrlH rune = readline.CharCtrlH
 

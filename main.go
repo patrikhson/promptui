@@ -18,6 +18,10 @@ import (
   "time"
   "flag"
 
+  // Prompt package
+  "github.com/manifoldco/promptui"
+  //"github.com/patrikhson/promptui"
+
   // SOCKS proxy (for TOR)
   "golang.org/x/net/proxy"
   
@@ -25,6 +29,7 @@ import (
   "database/sql"
   //_ "github.com/mattn/go-sqlite3"
   _ "modernc.org/sqlite"
+
 )
 
 // ratsit api https://www.ratsit.se/api/search/person?fnamn=patrik&enamn=f%C3%A4ltstr%C3%B6m&gata=&postnr=&ort=&kn=&pnr=196505&tfn=&m=1&k=1&r=1&er=1&b=1&eb=1&amin=16&amax=120&fon=1&typ=2&page=1
@@ -294,6 +299,16 @@ var useTor bool
 func checkErr(err error) {
   if err != nil {
     panic(err)
+  }
+}
+
+// Validate name
+func validateName(input string) error {
+	// You can add custom validation logic here if needed
+  if(len(input) < 5) {
+    return errors.New("Not long enough")
+  } else {
+    return nil
   }
 }
 
@@ -714,17 +729,37 @@ func main() {
 
         if(*updateBool) {
           fmt.Printf("\nUPDATING RECORD:\n")
-          fmt.Printf("          Name: %s\n", theName)
-          fmt.Printf("  Display Name: %s\n", theDisplayName)
-          fmt.Printf("    To Address: %s\n", theToAddress)
-          fmt.Printf("    Given Name: %s\n", theGivenName)
-          fmt.Printf("   Family Name: %s\n", theFamilyName)
-          fmt.Printf("     Telephone: %s\n", theTelephone)
-          fmt.Printf("     Birthdate: %s\n", theBirthDate)
-          fmt.Printf("Street Address: %s\n", theStreetAddress)
-          fmt.Printf("      Locality: %s\n", theAddressLocality)
-          fmt.Printf("      Zip code: %s\n", theAddressPostalCode)
-          fmt.Printf("       Country: %s\n", theAddressCountry)
+          fmt.Printf("            Name: %s\n", theName)
+          fmt.Printf("    Display Name: %s\n", theDisplayName)
+          fmt.Printf("      To Address: %s\n", theToAddress)
+          fmt.Printf("      Given Name: %s\n", theGivenName)
+          fmt.Printf("     Family Name: %s\n", theFamilyName)
+          fmt.Printf("       Telephone: %s\n", theTelephone)
+          fmt.Printf("       Birthdate: %s\n", theBirthDate)
+          fmt.Printf("  Street Address: %s\n", theStreetAddress)
+          fmt.Printf("        Locality: %s\n", theAddressLocality)
+          fmt.Printf("        Zip code: %s\n", theAddressPostalCode)
+          fmt.Printf("         Country: %s\n", theAddressCountry)
+
+          name := theName
+          prompt := promptui.Prompt{
+            Label:    "          Name",
+            Default:  name,
+            Validate: validateName,
+            Templates: &promptui.PromptTemplates{
+              Success: fmt.Sprintf("You entered: {{ . | bold }} %s\n", name),
+            },
+          }
+
+          result, err := prompt.Run()
+
+          if err != nil {
+            fmt.Printf("Prompt failed %v\n", err)
+            return
+          }
+
+          fmt.Printf("Result: %s\n", result)
+          
         }
       } else {
         for _, s := range ratsitpersons {
